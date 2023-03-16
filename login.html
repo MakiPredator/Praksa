@@ -1,0 +1,119 @@
+<?php
+session_start();
+// Provjera da li je korisnik već prijavljen i redirect na stranicu welcome.html
+if(isset($_SESSION["loggedin"]) && $_SESSION["loggedin"] === true){
+header("location: welcome.html");
+exit;
+}
+// Uključivanje fajla config.php
+require_once "config.php";
+// Inicijalizacija varijabli
+$username = $password = "";
+$username_err = $password_err = $login_err = "";
+// Procesiranje podataka iz forme
+if($_SERVER["REQUEST_METHOD"] == "POST"){
+// Provjera da li je username empty
+if(empty(trim($_POST["username"]))){
+$username_err = "Unesi username.";
+} else{
+$username = trim($_POST["username"]);
+}
+// Provjera da li je password unesen
+if(empty(trim($_POST["password"]))){
+$password_err = "Unesi password.";
+} else{
+$password = trim($_POST["password"]);
+}
+// Validacija unosa
+if(empty($username_err) && empty($password_err)){
+// Select query
+$sql = "SELECT id, username, password FROM users WHERE username = 
+:username";
+if($stmt = $pdo->prepare($sql)){
+// Povezivanje varijabli kao parametara
+$stmt->bindParam(":username", $param_username, PDO::PARAM_STR);
+// Postavljanje parametara
+$param_username = trim($_POST["username"]);
+// Izvršavanje query-a
+if($stmt->execute()){
+// Verifikacija password-a
+if($stmt->rowCount() == 1){
+if($row = $stmt->fetch()){
+$id = $row["id"];
+$username = $row["username"];
+$hashed_password = $row["password"];
+if(password_verify($password, $hashed_password)){
+ // Ako je password ispravan, počinje nova sesija
+session_start();
+// Postavljanje podataka u session varijable
+ $_SESSION["loggedin"] = true;
+$_SESSION["id"] = $id;
+ $_SESSION["username"]=$username; 
+// Redirect na welcome.html
+header("location: welcome.html");
+} else{
+ // Password nije tačan, ispisuje se poruka
+$login_err = "Netačan username i password.";
+}
+}
+} else{
+// Ukoliko nema korisnika ispisuje se poruka
+$login_err = "Netačan username ili password "; }
+} else{
+echo "Pokušaj ponovo";
+}
+// Zatvaranje
+unset($stmt);
+}
+}
+// Zatvaranje konekcije sa bazom podataka
+unset($pdo);
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+<link rel="stylesheet"
+href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<style>
+body{ font: 14px sans-serif; }
+.wrapper{ width: 360px; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+<h2>Login</h2>
+<p>Unesi username i password. p>
+<?php 
+if(!empty($login_err)){
+echo '<div class="alert alert-danger">' . $login_err . '</div>';
+} 
+?>
+<form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" 
+method="post">
+<div class="form-group">
+<label>Username</label>
+<input type="text" name="username" class="form-control <?php 
+echo (!empty($username_err)) ? 'is-invalid' : ''; ?>" value="<?php echo 
+$username; ?>">
+<span class="invalid-feedback"><?php echo $username_err; 
+?></span>
+</div>
+<div class="form-group">
+<label>Password</label>
+<input type="password" name="password" class="form-control <?php 
+echo (!empty($password_err)) ? 'is-invalid' : ''; ?>">
+<span class="invalid-feedback"><?php echo $password_err; 
+?></span>
+</div>
+<div class="form-group">
+<input type="submit" class="btn btn-primary" value="Login">
+</div>
+<p>Registruj se ako nemaš korisnički račun. <a
+href="register.html">Registruj se sada. </a>.</p>
+</form>
+</div>
+ </body>
+ </html>
